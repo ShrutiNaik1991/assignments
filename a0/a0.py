@@ -32,6 +32,7 @@ import time
 from TwitterAPI import TwitterAPI
 import configparser
 from operator import itemgetter
+from tkinter.constants import OFF
 #from configparser import ConfigParser
 
 consumer_key = '9CjgXCua6zc5Ex0pwLhinTgYX'
@@ -324,7 +325,8 @@ def draw_network(graph, users, filename):
     ###network.draw_networkx_edges(graph, pos, color = 'white')
     ###network.draw_networkx_edges(graph, pos, width = 0.5)
     ###network.draw(graph, labels=candidatelabels, with_labels = True, node_size=100)
-    network.draw_networkx(graph, alpha=.9, width=.7, labels=candidatelabels, with_labels = True, node_size=90)
+    network.draw_networkx(graph, alpha=.4, width=1.7, labels=candidatelabels, with_labels = True, node_size=150, height = 1.7)
+    plt.axis("off")
     plt.savefig(filename)
     plt.show()
     pass
