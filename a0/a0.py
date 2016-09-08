@@ -3,14 +3,11 @@
 """
 CS579: Assignment 0
 Collecting a political social network
-
 In this assignment, I've given you a list of Twitter accounts of 4
 U.S. presedential candidates.
-
 The goal is to use the Twitter API to construct a social network of these
 accounts. We will then use the [networkx](http://networkx.github.io/) library
 to plot these links, as well as print some statistics of the resulting graph.
-
 1. Create an account on [twitter.com](http://twitter.com).
 2. Generate authentication tokens by following the instructions [here](https://dev.twitter.com/docs/auth/tokens-devtwittercom).
 3. Add your tokens to the key/token variables below. (API Key == Consumer Key)
@@ -19,53 +16,59 @@ to plot these links, as well as print some statistics of the resulting graph.
 [TwitterAPI](https://github.com/geduldig/TwitterAPI). Assuming you've already
 installed [pip](http://pip.readthedocs.org/en/latest/installing.html), you can
 do this with `pip install networkx TwitterAPI`.
-
 OK, now you're ready to start collecting some data!
-
 I've provided a partial implementation below. Your job is to complete the
 code where indicated.  You need to modify the 10 methods indicated by
 #TODO.
-
 Your output should match the sample provided in Log.txt.
 """
 
 # Imports you'll need.
 from collections import Counter
 import matplotlib.pyplot as plt
-import networkx as nx
+import networkx as network
 import sys
 import time
 from TwitterAPI import TwitterAPI
+import configparser
+from operator import itemgetter
+#from configparser import ConfigParser
 
-consumer_key = 'fixme'
-consumer_secret = 'fixme'
-access_token = 'fixme'
-access_token_secret = 'fixme'
+consumer_key = '9CjgXCua6zc5Ex0pwLhinTgYX'
+consumer_secret = 'w61drjViEICEET0x8tVHJXtt8CdQPP6iQUSZnnE8bd0Qnf7BXz'
+access_token = '68439165-FYzTwOy33wAdRnwg2BZ1I3bc6275CjOZMfQ7fU8X4'
+access_token_secret = 'FfqDTXdcM7vpEk4UOikNMYarxuRS9PbedcxbciIdWdzLS'
 
 
-# This method is done for you.
+# This method is done for you. Make sure to put your credentials in the file twitter.cfg.
 def get_twitter():
     """ Construct an instance of TwitterAPI using the tokens you entered above.
     Returns:
       An instance of TwitterAPI.
     """
+   
     return TwitterAPI(consumer_key, consumer_secret, access_token, access_token_secret)
 
 
 def read_screen_names(filename):
     """
     Read a text file containing Twitter screen_names, one per line.
-
     Params:
         filename....Name of the file to read.
     Returns:
         A list of strings, one per screen_name, in the order they are listed
         in the file.
-
     Here's a doctest to confirm your implementation is correct.
     >>> read_screen_names('candidates.txt')
     ['DrJillStein', 'GovGaryJohnson', 'HillaryClinton', 'realDonaldTrump']
     """
+    i=0
+    file = open('candidates.txt', 'r')
+    list = file.readlines()
+    for items in list:
+        list[i] = items.rstrip('\n')
+        i=i+1
+    return list
     ###TODO
     pass
 
@@ -102,16 +105,17 @@ def get_users(twitter, screen_names):
     Returns:
         A list of dicts, one per user, containing all the user information
         (e.g., screen_name, id, location, etc)
-
     See the API documentation here: https://dev.twitter.com/rest/reference/get/users/lookup
-
     In this example, I test retrieving two users: twitterapi and twitter.
-
     >>> twitter = get_twitter()
     >>> users = get_users(twitter, ['twitterapi', 'twitter'])
     >>> [u['id'] for u in users]
     [6253282, 783214]
     """
+    params={'screen_name':screen_names}
+    request= robust_request(twitter,'users/lookup',params)
+    ###response = twitter.request('users/lookup',{'screen_name':screen_names})
+    return request     
     ###TODO
     pass
 
@@ -119,40 +123,39 @@ def get_users(twitter, screen_names):
 def get_friends(twitter, screen_name):
     """ Return a list of Twitter IDs for users that this person follows, up to 5000.
     See https://dev.twitter.com/rest/reference/get/friends/ids
-
     Note, because of rate limits, it's best to test this method for one candidate before trying
     on all candidates.
-
     Args:
         twitter.......The TwitterAPI object
         screen_name... a string of a Twitter screen name
     Returns:
         A list of ints, one per friend ID, sorted in ascending order.
-
     Note: If a user follows more than 5000 accounts, we will limit ourselves to
     the first 5000 accounts returned.
-
     In this test case, I return the first 5 accounts that I follow.
     >>> twitter = get_twitter()
     >>> get_friends(twitter, 'aronwc')[:5]
     [695023, 1697081, 8381682, 10204352, 11669522]
     """
     ###TODO
+    params={'screen_name':screen_name, 'count':5000}
+    request= robust_request(twitter,'friends/ids',params)
+    ###response = twitter.request('friends/ids',{'screen_name':screen_name, 'count':5000})
+    ids = request.json()
+    return sorted(ids['ids'])
     pass
 
 
 def add_all_friends(twitter, users):
+    
     """ Get the list of accounts each user follows.
     I.e., call the get_friends method for all 4 candidates.
-
     Store the result in each user's dict using a new key called 'friends'.
-
     Args:
         twitter...The TwitterAPI object.
         users.....The list of user dicts.
     Returns:
         Nothing
-
     >>> twitter = get_twitter()
     >>> users = [{'screen_name': 'aronwc'}]
     >>> add_all_friends(twitter, users)
@@ -160,6 +163,8 @@ def add_all_friends(twitter, users):
     [695023, 1697081, 8381682, 10204352, 11669522]
     """
     ###TODO
+    for user in users:
+        user['friends'] = get_friends(twitter, user['screen_name'])
     pass
 
 
@@ -172,6 +177,8 @@ def print_num_friends(users):
         Nothing
     """
     ###TODO
+    for user in users:
+        print(user['screen_name'], len(user['friends']))
     pass
 
 
@@ -182,29 +189,33 @@ def count_friends(users):
     Returns:
         a Counter object mapping each friend to the number of candidates who follow them.
         Counter documentation: https://docs.python.org/dev/library/collections.html#collections.Counter
-
     In this example, friend '2' is followed by three different users.
     >>> c = count_friends([{'friends': [1,2]}, {'friends': [2,3]}, {'friends': [2,3]}])
     >>> c.most_common()
     [(2, 3), (3, 2), (1, 1)]
     """
     ###TODO
+    counter = Counter();
+    for user in users:
+        for friends in user['friends']:
+            counter[friends] = counter[friends]+1
+            
+    return counter
+    ###print(users['friends'])
+    
     pass
 
 
 def friend_overlap(users):
     """
     Compute the number of shared accounts followed by each pair of users.
-
     Args:
         users...The list of user dicts.
-
     Return: A list of tuples containing (user1, user2, N), where N is the
         number of accounts that both user1 and user2 follow.  This list should
         be sorted in descending order of N. Ties are broken first by user1's
         screen_name, then by user2's screen_name (sorted in ascending
         alphabetical order). See Python's builtin sorted method.
-
     In this example, users 'a' and 'c' follow the same 3 accounts:
     >>> friend_overlap([
     ...     {'screen_name': 'a', 'friends': ['1', '2', '3']},
@@ -214,6 +225,28 @@ def friend_overlap(users):
     [('a', 'c', 3), ('a', 'b', 2), ('b', 'c', 2)]
     """
     ###TODO
+    j=0
+    i=1
+    
+    finalcommonfriendlist = []
+    for user1 in users:
+        
+        j=1
+        for user2 in users:
+            
+            commonfriendlist = []
+            if (user1['screen_name'] != user2['screen_name']) and (j>i) and (j<5):
+                commonfriendlist = list(set(user1['friends']) & set(user2['friends']))
+                counter = len(commonfriendlist)
+                row = (user1['screen_name'], user2['screen_name'], counter)
+                finalcommonfriendlist.append(row)
+        
+            j=j+1    
+        i=i+1
+        ###finalcommonfriendlist.append(row)
+    finalcommonfriendlist = sorted(finalcommonfriendlist, key=lambda x: (x[0], x[1]))
+    finalcommonfriendlist = sorted(finalcommonfriendlist, key=lambda x: (x[2]), reverse = True)
+    return finalcommonfriendlist
     pass
 
 
@@ -223,7 +256,6 @@ def followed_by_hillary_and_donald(users, twitter):
     Clinton and Donald Trump. You will need to use the TwitterAPI to convert
     the Twitter ID to a screen_name. See:
     https://dev.twitter.com/rest/reference/get/users/lookup
-
     Params:
         users.....The list of user dicts
         twitter...The Twitter API object
@@ -232,6 +264,14 @@ def followed_by_hillary_and_donald(users, twitter):
         that is followed by both Hillary Clinton and Donald Trump.
     """
     ###TODO
+    listhilary = users[3]['friends']
+    listdonald = users[2]['friends']
+    commonfriend = list(set(listhilary) & set(listdonald))
+    params = {'user_id':commonfriend}
+    friendname = robust_request(twitter,'users/lookup',params)
+    ###friendname = twitter.request('users/lookup',{'user_id':commonfriend})
+    result = friendname.json()
+    return result[0]['screen_name']
     pass
 
 
@@ -240,10 +280,8 @@ def create_graph(users, friend_counts):
         as a node.  Note: while all candidates should be added to the graph,
         only add friends to the graph if they are followed by more than one
         candidate. (This is to reduce clutter.)
-
         Each candidate in the Graph will be represented by their screen_name,
         while each friend will be represented by their user id.
-
     Args:
       users...........The list of user dicts.
       friend_counts...The Counter dict mapping each friend to the number of candidates that follow them.
@@ -251,6 +289,16 @@ def create_graph(users, friend_counts):
       A networkx Graph
     """
     ###TODO
+    graph=network.Graph()
+    for user in users:
+        graph.add_node(user['screen_name'])
+        
+    for user in users:   
+        for friend in user['friends']:
+            if friend_counts[friend]>1:                
+                graph.add_node(friend)
+                graph.add_edge(user['screen_name'], friend)
+    return graph
     pass
 
 
@@ -258,13 +306,27 @@ def draw_network(graph, users, filename):
     """
     Draw the network to a file. Only label the candidate nodes; the friend
     nodes should have no labels (to reduce clutter).
-
     Methods you'll need include networkx.draw_networkx, plt.figure, and plt.savefig.
-
     Your figure does not have to look exactly the same as mine, but try to
     make it look presentable.
     """
     ###TODO
+    candidatelabels = {}
+    
+    candidatelabels[users[0]['screen_name']] = users[0]['screen_name']
+    candidatelabels[users[1]['screen_name']] = users[1]['screen_name']
+    candidatelabels[users[2]['screen_name']] = users[2]['screen_name']
+    candidatelabels[users[3]['screen_name']] = users[3]['screen_name']
+    pos = network.spring_layout(graph)
+    ###network.draw_networkx_edges(graph, pos, width = 0.5)    
+    ###network.draw(graph, labels=candidatelabels, with_labels = True, node_size=100)
+    ###network.draw_networkx_edges(graph, pos, edgelist, width, edge_color, style, alpha, edge_cmap, edge_vmin, edge_vmax, ax, arrows, label)
+    ###network.draw_networkx_edges(graph, pos, color = 'white')
+    ###network.draw_networkx_edges(graph, pos, width = 0.5)
+    ###network.draw(graph, labels=candidatelabels, with_labels = True, node_size=100)
+    network.draw_networkx(graph, alpha=.9, width=.7, labels=candidatelabels, with_labels = True, node_size=90)
+    plt.savefig(filename)
+    plt.show()
     pass
 
 
